@@ -1,0 +1,6 @@
+{
+  "name": "AJAY BATTLES",
+  "description": "Free Fire Esports Tournament Platform — Play Like A Pro. Join Tournaments And Win.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

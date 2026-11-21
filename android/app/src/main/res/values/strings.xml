@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AJAY BATTLES</string>
+    <string name="title_activity_main">AJAY BATTLES</string>
+    <string name="package_name">com.ajaybattles.app</string>
+    <string name="custom_url_scheme">com.ajaybattles.app</string>
+</resources>

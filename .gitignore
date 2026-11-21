@@ -1,0 +1,12 @@
+node_modules/
+build/
+dist/
+dist-apk/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+android/keystore.properties
+*.keystore
+*.jks

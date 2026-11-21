@@ -1,0 +1,100 @@
+name: Build & Release Android APK & AAB
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-artifacts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Build web bundle
+        run: npm run build
+
+      - name: Add and sync Capacitor Android project
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Build Android APK & Play Store AAB
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          mkdir -p dist-apk
+          cd android
+          chmod +x gradlew
+
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo "Building signed release APK and Play Store AAB..."
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > app/release.keystore
+            export ANDROID_KEYSTORE_PATH="$(pwd)/app/release.keystore"
+            ./gradlew assembleRelease bundleRelease
+            cp app/build/outputs/apk/release/app-release.apk ../dist-apk/ajay-battles.apk
+            cp app/build/outputs/bundle/release/app-release.aab ../dist-apk/ajay-battles.aab
+            rm -f app/release.keystore
+          else
+            echo "No release keystore secrets set; building installable debug APK and unsigned Play Store AAB..."
+            ./gradlew assembleDebug bundleRelease
+            cp app/build/outputs/apk/debug/app-debug.apk ../dist-apk/ajay-battles.apk
+            cp app/build/outputs/bundle/release/app-release.aab ../dist-apk/ajay-battles.aab
+          fi
+
+      - name: Upload APK & AAB workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ajay-battles-android-artifacts
+          path: |
+            dist-apk/ajay-battles.apk
+            dist-apk/ajay-battles.aab
+          retention-days: 30
+
+      - name: Publish APK & AAB to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }}
+          name: AJAY BATTLES Android Build (${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'latest' }})
+          body: |
+            Automated Android APK & Google Play AAB build for **AJAY BATTLES**.
+
+            - Direct APK download (public repo): `https://github.com/${{ github.repository }}/releases/latest/download/ajay-battles.apk`
+            - Direct AAB download (public repo): `https://github.com/${{ github.repository }}/releases/latest/download/ajay-battles.aab`
+          files: |
+            dist-apk/ajay-battles.apk
+            dist-apk/ajay-battles.aab
+          draft: false
+          prerelease: false
+          make_latest: true
